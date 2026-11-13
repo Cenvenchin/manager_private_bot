@@ -1,9 +1,13 @@
 import telebot
+from telebot import types
 from dotenv import load_dotenv
+import re
+from decimal import Decimal
 import os
 
 from config import BOT_TOKEN, ADMIN_ID
-from database import init_db, ensure_admin, register_user
+from database import init_db, ensure_admin, register_user, get_user_by_telegram_id, add_income
+
 
 load_dotenv()
 
@@ -11,6 +15,35 @@ if not BOT_TOKEN:
     print("Не найден BOT_TOKEN")
 
 bot = telebot.TeleBot(BOT_TOKEN)
+
+def create_main_menu():
+    markup = types.InlineKeyboardMarkup(row_width=2)
+
+    money_button = types.InlineKeyboardButton(
+        "💵 Добавить доход",
+        callback_data="add_money"
+    )
+
+    stats_button = types.InlineKeyboardButton(
+        "📊 Статистика",
+        callback_data="stats"
+    )
+
+    period_button = types.InlineKeyboardButton(
+        "🗓️ Доходы за период",
+        callback_data="period"
+    )
+
+    history_button = types.InlineKeyboardButton(
+        "📋 История доходов",
+        callback_data="history"
+    )
+
+    markup.add(money_button, stats_button)
+    markup.add(period_button, history_button)
+
+    return markup
+
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -47,8 +80,12 @@ def start(message):
 
         bot.send_message(
             message.chat.id,
-            "Привет! Это бот для учёта доходов 💵"
+            "Привет! Это бот для учёта доходов 💵\n"
+            "выберите действие в меню:",
+            reply_markup=create_main_menu()
         )
+
+
 
 if __name__ == "__main__":
     init_db()
