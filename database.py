@@ -334,3 +334,18 @@ def add_income(user_id, amount, service, created_at=None):
             raise ValueError("Пользователь не найден или заблокирован")
 
         return cursor.lastrowid
+
+
+def get_user_total_income(user_id):
+    """Возвращает суммарный доход конкретного пользователя."""
+
+    with get_connection() as conn:
+        result = conn.execute("""
+            SELECT COALESCE(SUM(amount), 0) AS total
+            FROM incomes
+            WHERE user_id = ?
+        """, (user_id,)).fetchone()
+
+        return result["total"]
+
+

@@ -10,7 +10,7 @@ from telebot.types import (ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRem
 import os
 
 from config import BOT_TOKEN, ADMIN_ID
-from database import init_db, ensure_admin, register_user, get_user_by_telegram_id, add_income
+from database import (init_db, ensure_admin, register_user, get_user_by_telegram_id, add_income, get_user_total_income)
 from database import migrate_income_service_constraint
 
 
@@ -151,7 +151,7 @@ def save_income_and_finish(chat_id, telegram_id, amount_kopecks, service, create
         f"💰 Сумма: {rubles:,}".replace(",", " ")
         + f",{kopecks:02d} ₽\n"
         f"📝 Источник дохода: {service or 'Без комментария'}\n"
-        f"📅 дата: {saved_date.strftime('%d.%m.%Y')}",
+        f"🗓️ дата: {saved_date.strftime('%d.%m.%Y')}",
         reply_markup=main_menu()
     )
 
@@ -180,7 +180,7 @@ def request_income_date(chat_id, telegram_id, amount_kopecks, service):
 
     bot.send_message(
         chat_id,
-        "📅 Дата получения дохода:\n\n"
+        "Дата получения дохода:\n\n"
         f"{current_time.strftime('%d.%m.%Y')}\n\n"
         "Сохранить эту дату или изменить?",
         reply_markup=markup
@@ -252,7 +252,7 @@ def change_income_date(call):
 
     prompt = bot.send_message(
         call.message.chat.id,
-        "📅 Введи дату получения дохода в формате ДД.ММ.ГГГГ.\n\n"
+        "🗓️ Введи дату получения дохода в формате ДД.ММ.ГГГГ.\n\n"
         "Для отмены напишите: Отмена"
     )
 
@@ -392,6 +392,32 @@ def skip_income_service(call):
         amount_kopecks,
         ""
     )
+
+
+
+@bot.message_handler(func=lambda message: message.text == "🗓️ Доходы за период")
+def show_total_income(message):
+
+    telegram_id = message.from_user.id
+
+    user = get_user_by_telegram_id(telegram_id)
+
+    if not user or user["status"] != "active":
+        bot.send_message(message.chat.id, "Нет доступа.")
+        return
+
+    total_kopecks = get_user_total_income(user["id"])
+
+    rubles, kopecks = divmod(total_kopecks, 100)
+
+    formatted_amount = f"{rubles:,}".replace(",", " ")
+
+    bot.send_message(
+        message.chat.id,
+        f"💰 Ваш суммарный доход: "
+        f"{formatted_amount},{kopecks:02d} ₽"
+    )
+
 
 
 @bot.message_handler(commands=['start'])
