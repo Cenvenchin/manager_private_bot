@@ -4,6 +4,7 @@ import secrets
 
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 DB_NAME = "manager_bot.db"
 
@@ -59,7 +60,7 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
                 amount INTEGER NOT NULL CHECK(amount > 0),
-                service TEXT NOT NULL CHECK(length(trim(service)) > 0),
+                service TEXT NOT NULL,
                 created_at TEXT NOT NULL,
 
                 FOREIGN KEY (user_id)
@@ -76,6 +77,56 @@ def init_db():
         conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_users_status
             ON users(status)
+        """)
+
+def migrate_income_service_constraint():
+
+    with get_connection() as conn:
+
+        schema = conn.execute("""
+            SELECT sql
+            FROM sqlite_master
+            WHERE type = 'table' AND name = 'incomes'
+        """).fetchone()
+
+        if not schema:
+            return
+
+        normalized = "".join(schema["sql"].lower().split())
+
+        if "check(length(trim(service))>0)" not in normalized:
+            return
+
+        conn.execute("""
+            CREATE TABLE incomes_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                amount INTEGER NOT NULL CHECK(amount > 0),
+                service TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (user_id)
+                    REFERENCES users(id)
+                    ON DELETE RESTRICT
+            )
+        """)
+
+        conn.execute("""
+            INSERT INTO incomes_new (
+                id, user_id, amount, service, created_at
+            )
+            SELECT id, user_id, amount, service, created_at
+            FROM incomes
+        """)
+
+        conn.execute("DROP TABLE incomes")
+
+        conn.execute("""
+            ALTER TABLE incomes_new RENAME TO incomes
+        """)
+
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_incomes_user_date
+            ON incomes(user_id, created_at)
         """)
 
 
@@ -246,8 +297,7 @@ def set_user_pin(user_id, pin):
 
         return cursor.rowcount == 1
 
-
-def add_income(user_id, amount, service):
+def add_income(user_id, amount, service, created_at=None):
     """Добавляет доход пользователя."""
 
     if not isinstance(amount, int) or amount <= 0:
@@ -255,8 +305,10 @@ def add_income(user_id, amount, service):
 
     service = service.strip()
 
-    if not service:
-        raise ValueError("Название услуги не может быть пустым")
+    if created_at is None:
+        created_at = datetime.now(
+            ZoneInfo("Europe/Moscow")
+        ).isoformat(timespec="seconds")
 
     with get_connection() as conn:
 
@@ -274,7 +326,7 @@ def add_income(user_id, amount, service):
         """, (
             amount,
             service,
-            get_current_time(),
+            created_at,
             user_id
         ))
 
