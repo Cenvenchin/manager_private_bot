@@ -415,7 +415,9 @@ def show_total_income(message):
     bot.send_message(
         message.chat.id,
         f"💰 Ваш суммарный доход: "
-        f"{formatted_amount},{kopecks:02d} ₽"
+        f"{formatted_amount},{kopecks:02d} ₽\n\n"
+        f"ВАЖНО: Данная функция находится в разработке\n"
+        f"пока что бот выводит только суммарный доход!"
     )
 
 
