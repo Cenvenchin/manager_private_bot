@@ -253,7 +253,7 @@ def change_income_date(call):
     prompt = bot.send_message(
         call.message.chat.id,
         "📅 Введи дату получения дохода в формате ДД.ММ.ГГГГ.\n\n"
-        "Для отмены напишите: Отмена."
+        "Для отмены напишите: Отмена"
     )
 
     bot.register_next_step_handler(
@@ -293,7 +293,7 @@ def process_manual_income_date(message):
             message.chat.id,
             "⚠️ Неверный формат даты.\n"
             "Введи дату строго в формате ДД.ММ.ГГГГ.\n"
-            "Например: 05.11.2026"
+            "Например: 08.11.2026"
         )
 
         bot.register_next_step_handler(
